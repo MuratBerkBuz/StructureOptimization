@@ -1,7 +1,0 @@
-2025-12-04 18:29:46.886 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 38.096 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:29:46.940 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 0.149 ms after 1 iterations. Optimised design variables: [-0.000 -0.000]
-2025-12-04 18:29:46.944 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.96 ms after 32 iterations. Optimised design variables: [ 1.000  3.000]
-2025-12-04 18:29:46.945 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 0.099 ms after 1 iterations. Optimised design variables: [-0.000 -0.000]
-2025-12-04 18:29:46.949 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.344 ms after 20 iterations. Optimised design variables: [ 3.000  2.000]
-2025-12-04 18:29:46.952 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.49 ms after 17 iterations. Optimised design variables: [ 3.142  3.142]
-2025-12-04 18:29:46.955 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.003 ms after 17 iterations. Optimised design variables: [-0.547 -1.547]

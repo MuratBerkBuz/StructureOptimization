@@ -1,7 +1,0 @@
-2025-12-04 18:16:58.918 INFO from aso.optimiser: Algorithm SQP failed to converge in 203.585 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:16:59.336 INFO from aso.optimiser: Algorithm SQP failed to converge in 339.172 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:16:59.628 INFO from aso.optimiser: Algorithm SQP failed to converge in 285.031 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:16:59.841 INFO from aso.optimiser: Algorithm SQP failed to converge in 205.423 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:17:00.086 INFO from aso.optimiser: Algorithm SQP failed to converge in 238.118 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:17:00.349 INFO from aso.optimiser: Algorithm SQP failed to converge in 255.299 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:17:00.552 INFO from aso.optimiser: Algorithm SQP failed to converge in 196.702 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.

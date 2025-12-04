@@ -1,8 +1,0 @@
-2025-12-04 18:26:07.664 INFO from aso.optimiser: Algorithm SQP failed to converge in 121.902 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:07.886 INFO from aso.optimiser: Algorithm SQP failed to converge in 216.709 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.065 INFO from aso.optimiser: Algorithm SQP failed to converge in 173.771 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.206 INFO from aso.optimiser: Algorithm SQP failed to converge in 136.289 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.376 INFO from aso.optimiser: Algorithm SQP failed to converge in 165.164 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.551 INFO from aso.optimiser: Algorithm SQP failed to converge in 170.341 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.703 INFO from aso.optimiser: Algorithm SQP failed to converge in 147.856 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
-2025-12-04 18:26:08.708 INFO from aso.optimiser: Algorithm MMA converged in 0.002 ms after None iterations. Optimised design variables: [ 1.414  1.414  0.000  1.000  0.586]
