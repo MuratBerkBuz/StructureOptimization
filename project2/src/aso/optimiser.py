@@ -300,22 +300,22 @@ class Optimiser:
             Number of performed iterations, -1 if `iteration >
             iteration_limit`.
         """
-        n = self.n
-        m = self.problem.m
-        me = self.problem.me
+        n: int = self.n
+        m: int = self.problem.m
+        me: int = self.problem.me
         
         # Step 0: Initial conditions
         # Hessian approximation V initialized to identity matrix
-        V = np.eye(n)
+        V: NDArray = np.eye(n)
         
         # Penalty parameter for merit function
-        mu = 1.0
+        mu: float = 1.0
         
         # Compute initial values
-        f = self.problem.compute_objective(self.x)
-        c = self.problem.compute_constraints(self.x)
-        grad_f = self.problem.compute_grad_objective(self.x)
-        grad_c = self.problem.compute_grad_constraints(self.x)
+        f: NDArray  = self.problem.compute_objective(self.x) #TODO: check if needed BABACIM
+        c: NDArray = self.problem.compute_constraints(self.x)
+        grad_f: NDArray = self.problem.compute_grad_objective(self.x)
+        grad_c: NDArray = self.problem.compute_grad_constraints(self.x)
         
         # Compute gradient of Lagrangian
         grad_L = grad_f.copy()
@@ -339,7 +339,7 @@ class Optimiser:
                     p = -grad_f
             else:
                 # Step 2: Solve the KKT system with active constraints only
-                dim = n + len(active)
+                dim: int = n + len(active)
                 KKT = np.zeros((dim, dim))
                 RHS = np.zeros(dim)
                 
@@ -373,7 +373,7 @@ class Optimiser:
             
             # Update penalty parameter based on Lagrange multipliers
             if len(active) > 0:
-                mu = max(mu, 1.1 * np.max(np.abs(self.lm[active])))
+                mu: float = max(mu, 1.1 * np.max(np.abs(self.lm[active])))
             
             # Step 3: Line search using L1 merit function
             # Merit function: phi(x) = f(x) + mu * sum(max(0, g_j(x))) + mu * sum(|h_j(x)|)
@@ -389,7 +389,7 @@ class Optimiser:
                     penalty += abs(c_trial[j])
                 return f_trial + mu * penalty
             
-            # Backtracking line search on merit function
+            # Backtracking line search on merit function  #TODO: replace with general line search method BABACIM
             alpha = 1.0
             merit_old = merit(self.x)
             
@@ -418,7 +418,7 @@ class Optimiser:
                 alpha *= rho_bt
             
             # Store old gradient for L-BFGS update
-            grad_L_old = grad_L.copy()
+            grad_L_old = grad_L.copy()   #TODO: check if needed BABACIM
             
             # Update design variables (in place as required)
             self.x[:] = x_old + alpha * p
@@ -437,10 +437,10 @@ class Optimiser:
                 self.x[:] = np.minimum(self.x, ub)
             
             # Step 4: Run analysis and sensitivity analysis
-            f = self.problem.compute_objective(self.x)
-            c = self.problem.compute_constraints(self.x)
-            grad_f = self.problem.compute_grad_objective(self.x)
-            grad_c = self.problem.compute_grad_constraints(self.x)
+            f: NDArray  = self.problem.compute_objective(self.x) #TODO: check if needed BABACIM
+            c: NDArray  = self.problem.compute_constraints(self.x)
+            grad_f: NDArray  = self.problem.compute_grad_objective(self.x)
+            grad_c: NDArray  = self.problem.compute_grad_constraints(self.x)
             
             # Compute new gradient of Lagrangian (using updated multipliers)
             grad_L = grad_f.copy()
@@ -469,7 +469,7 @@ class Optimiser:
             
             # Step 5: L-BFGS Hessian update
             # p^i = x^{i+1} - x^i (actual step taken)
-            p_vec = self.x - x_old
+            p_vec: NDArray  = self.x - x_old
             
             # y^i = grad_L(x^{i+1}, lambda^{i+1}) - grad_L(x^i, lambda^{i+1})
             # Recompute grad_L at old x with new lambda
