@@ -1,0 +1,15 @@
+2025-12-04 18:29:43.293 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 37.117 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:43.349 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 0.156 ms after 1 iterations. Optimised design variables: [-0.000 -0.000]
+2025-12-04 18:29:43.352 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 2.022 ms after 32 iterations. Optimised design variables: [ 1.000  3.000]
+2025-12-04 18:29:43.353 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 0.092 ms after 1 iterations. Optimised design variables: [-0.000 -0.000]
+2025-12-04 18:29:43.356 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.358 ms after 20 iterations. Optimised design variables: [ 3.000  2.000]
+2025-12-04 18:29:43.359 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 1.492 ms after 17 iterations. Optimised design variables: [ 3.142  3.142]
+2025-12-04 18:29:43.361 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT converged in 0.965 ms after 17 iterations. Optimised design variables: [-0.547 -1.547]
+2025-12-04 18:29:43.482 INFO from aso.optimiser: Algorithm SQP failed to converge in 119.921 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:43.703 INFO from aso.optimiser: Algorithm SQP failed to converge in 215.897 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:43.878 INFO from aso.optimiser: Algorithm SQP failed to converge in 169.504 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:44.023 INFO from aso.optimiser: Algorithm SQP failed to converge in 139.559 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:44.191 INFO from aso.optimiser: Algorithm SQP failed to converge in 163.465 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:44.367 INFO from aso.optimiser: Algorithm SQP failed to converge in 171.43 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:44.516 INFO from aso.optimiser: Algorithm SQP failed to converge in 144.762 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-04 18:29:44.521 INFO from aso.optimiser: Algorithm MMA converged in 0.002 ms after None iterations. Optimised design variables: [ 1.414  1.414  0.000  1.000  0.586]

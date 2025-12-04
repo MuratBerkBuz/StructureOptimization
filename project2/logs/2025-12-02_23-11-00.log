@@ -1,0 +1,7 @@
+2025-12-02 23:11:00.790 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 269.533 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:02.329 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 1490.245 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:02.958 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 624.218 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:03.560 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 595.57 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:04.195 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 629.66 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:05.613 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 1412.345 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.
+2025-12-02 23:11:06.484 INFO from aso.optimiser: Algorithm STEEPEST_DESCENT failed to converge in 864.77 ms after -1 iterations. Consider using another algorithm or increasing the iteration limit.

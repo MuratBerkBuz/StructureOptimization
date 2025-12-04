@@ -1,0 +1,7 @@
+2025-12-04 22:13:22.577 INFO from aso.optimiser: Algorithm SQP converged in 2.08 ms after 7 iterations. Optimised design variables: [ 0.786  0.618]
+2025-12-04 22:13:22.582 INFO from aso.optimiser: Algorithm SQP converged in 2.045 ms after 2 iterations. Optimised design variables: [ 2.586  2.586]
+2025-12-04 22:13:22.589 INFO from aso.optimiser: Algorithm SQP converged in 3.075 ms after 7 iterations. Optimised design variables: [ 0.738  3.154]
+2025-12-04 22:13:22.592 INFO from aso.optimiser: Algorithm SQP converged in 0.624 ms after 2 iterations. Optimised design variables: [ 0.500  0.500]
+2025-12-04 22:13:22.655 INFO from aso.optimiser: Algorithm SQP converged in 60.945 ms after 408 iterations. Optimised design variables: [ 3.584 -1.848]
+2025-12-04 22:13:22.661 INFO from aso.optimiser: Algorithm SQP converged in 3.264 ms after 12 iterations. Optimised design variables: [ 3.272  3.185]
+2025-12-04 22:13:22.666 INFO from aso.optimiser: Algorithm SQP converged in 2.012 ms after 7 iterations. Optimised design variables: [-0.258 -0.983]
