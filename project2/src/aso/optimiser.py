@@ -199,7 +199,7 @@ class Optimiser:
                 direction=direction,
                 alpha_ini=1.0,     # Try a step size of 1.0 first
                 alpha_min=1e-8,    # Safety lower bound
-                algorithm="STRONG_WOLFE" # Use Strong Wolfe or WOLFE
+                algorithm="WOLFE"  # Use Strong Wolfe or WOLFE or GOLDSTEIN-PRICE
             )
 
             # --- Update design variables ---
@@ -327,11 +327,10 @@ class Optimiser:
                 grad_L += self.lm[j] * grad_c[j]
 
             # 2. Check Convergence
-            if self.converged(gradient=grad_L, constraints=c):
-                return iteration
+            if self.converged(gradient=grad_L, constraints=c): return iteration
 
             # 3. Determine Active Set (with epsilon tolerance)
-            epsilon = 1e-5
+            epsilon: float = 1e-5
             active_ineq = np.where(c[:m] >= -epsilon)[0].tolist()
             active_eq = list(range(m, m + me))
             active_indices = active_ineq + active_eq
@@ -413,7 +412,7 @@ class Optimiser:
                 alpha = self.line_search(
                     direction=p, 
                     alpha_ini=1.0, 
-                    algorithm="STRONG_WOLFE",
+                    algorithm="STRONG_WOLFE", # Use STRONG_WOLFE or WOLFE or GOLDSTEIN-PRICE
                     m1=1e-4,
                     m2=0.9
                 )
@@ -546,7 +545,7 @@ class Optimiser:
         direction: NDArray,
         alpha_ini: float = 1,
         alpha_min: float = 1e-6,
-        alpha_max: float = 1,
+        alpha_max: float = 1e9,
         algorithm: Literal[
             "WOLFE",
             "STRONG_WOLFE",
@@ -586,92 +585,139 @@ class Optimiser:
         float
             Approximately optimal step size.
         """
-        if algorithm == "WOLFE" or algorithm == "GOLDSTEIN-PRICE":
-            raise Warning(f"Line search algorithm '{algorithm}' is not yet implemented. Solver will use 'STRONG_WOLFE' instead.")
         
-        # 0. Helper Functions for phi(alpha) and phi'(alpha)
-        # --------------------------------------------------
-        # phi(alpha) = f(x + alpha * p)
+        # Helper: phi(alpha) = f(x + alpha * p)
         def phi(a: float) -> float:
             x_trial = self.x + a * direction
-            # If bounds exist, we might project, but usually LS assumes pure direction.
-            # However, problem evaluation might fail if out of bounds.
-            # For exact L-BFGS-B behavior, we implicitly clip, but here we assume unconstrained step logic.
+            # If constrained, objective is effectively the merit function wrapped by caller
             return self.problem.compute_objective(x_trial)
 
-        # phi'(alpha) = grad(f(x + alpha * p))^T * p
+        # Helper: phi'(alpha) = grad(f(x + alpha * p))^T * p
         def gphi(a: float) -> float:
             x_trial = self.x + a * direction
             grad = self.problem.compute_grad_objective(x_trial)
             return np.dot(grad, direction)
 
-        # 1. Initialization
-        # -----------------
         alpha = alpha_ini
-        alpha_L = 0.0
-        alpha_U = float('inf') # Using infinity as per Ex 5 slide 14
-
-        # Initial values at alpha=0
+        
+        # Initial values
         phi_0 = phi(0.0)
         gphi_0 = gphi(0.0)
 
-        # Check if direction is descent direction
+        # Basic Check: Must be descent direction (gphi_0 < 0)
         if gphi_0 > 0:
-            # Not a descent direction, fallback or return small step
-            # logger.warning("Not a descent direction.")
+            # Not a descent direction, just return small step
             return alpha_min
 
-        # 2. Main Loop (Strong Wolfe)
-        # ---------------------------
-        max_iter = 100
-        for i in range(max_iter):
-            # Safety check for bounds
-            if alpha < alpha_min:
-                return alpha_min
-            if alpha > alpha_max:
-                return alpha_max
+        max_iter = 50
 
-            phi_alpha = phi(alpha)
-            gphi_alpha = gphi(alpha)
-
-            # Armijo Condition (Sufficient Decrease)
-            # phi(alpha) <= phi(0) + m1 * alpha * phi'(0)
-            armijo = phi_alpha <= phi_0 + m1 * alpha * gphi_0
-
-            # Strong Curvature Condition
-            # |phi'(alpha)| <= m2 * |phi'(0)|
-            curvature = abs(gphi_alpha) <= m2 * abs(gphi_0)
-
-            # --- Logic from Exercise 5, Page 14 ---
+        # --- STRONG WOLFE (Based on Exercise 5) ---
+        if algorithm == "STRONG_WOLFE":
+            alpha_L = 0.0
+            alpha_U = float('inf')
             
-            if armijo and curvature:
-                # Both conditions satisfied -> Stop
-                return alpha
+            for _ in range(max_iter):
+                if alpha < alpha_min: return alpha_min
+                if alpha > alpha_max: return alpha_max
 
-            elif not armijo:
-                # Sufficient decrease NOT satisfied (Step too big)
-                alpha_U = alpha
-                alpha = (alpha_L + alpha_U) / 2.0
+                phi_val = phi(alpha)
+                gphi_val = gphi(alpha)
 
-            elif armijo and not curvature:
-                # Sufficient decrease satisfied, but curvature NOT satisfied
+                # Conditions
+                armijo = phi_val <= phi_0 + m1 * alpha * gphi_0
+                curvature = abs(gphi_val) <= m2 * abs(gphi_0)
+
+                # Check Logic from Exercise 5
+                if armijo and curvature:
+                    return alpha
                 
-                # Check slope to decide direction
-                if gphi_alpha < 0:
-                    # Slope is negative: we are still descending, need larger step
-                    alpha_L = alpha
-                    if alpha_U == float('inf'):
-                        # No upper bound yet, expand
-                        # Slide says: alpha += alpha_initial (additive expansion)
-                        # Standard methods often use multiplicative (alpha *= 2), 
-                        # but adhering to Ex 5 notation:
-                        alpha += alpha_ini 
-                    else:
-                        # Upper bound exists, bisect
-                        alpha = (alpha_L + alpha_U) / 2.0
-                else:
-                    # Slope is positive: we passed the minimum, need smaller step
+                elif not armijo:
+                    # Step too big
                     alpha_U = alpha
                     alpha = (alpha_L + alpha_U) / 2.0
-        
+                
+                elif armijo and not curvature:
+                    # Sufficient decrease ok, but curvature failed
+                    if gphi_val < 0:
+                        # Slope is negative (still descending), need larger step
+                        alpha_L = alpha
+                        if alpha_U == float('inf'):
+                            alpha += alpha_ini # Additive expansion per slides
+                        else:
+                            alpha = (alpha_L + alpha_U) / 2.0
+                    else:
+                        # Slope is positive (passed minimum), need smaller step
+                        alpha_U = alpha
+                        alpha = (alpha_L + alpha_U) / 2.0
+            
+            return alpha
+
+        # --- STANDARD (WEAK) WOLFE ---
+        elif algorithm == "WOLFE":
+            alpha_L = 0.0
+            alpha_U = float('inf')
+
+            for _ in range(max_iter):
+                if alpha < alpha_min: return alpha_min
+                
+                phi_val = phi(alpha)
+                
+                # 1. Armijo (Sufficient Decrease)
+                if phi_val > phi_0 + m1 * alpha * gphi_0:
+                    # Step too big
+                    alpha_U = alpha
+                    alpha = (alpha_L + alpha_U) / 2.0
+                else:
+                    # Armijo satisfied, check Curvature (Slope >= m2 * slope_0)
+                    gphi_val = gphi(alpha)
+                    if gphi_val >= m2 * gphi_0:
+                        return alpha
+                    else:
+                        # Slope is too negative (step too short)
+                        alpha_L = alpha
+                        if alpha_U == float('inf'):
+                            alpha = 2.0 * alpha # Expansion
+                        else:
+                            alpha = (alpha_L + alpha_U) / 2.0
+            return alpha
+
+        # --- GOLDSTEIN-PRICE (Goldstein Conditions) ---
+        elif algorithm == "GOLDSTEIN-PRICE":
+            alpha_L = 0.0
+            alpha_U = float('inf')
+            
+            # Note: For Goldstein, usually m1 (c) is < 0.5. Default m1=1e-4 is fine.
+            # Lower bound condition: phi(a) >= phi(0) + (1-m1)*a*gphi(0)
+            
+            for _ in range(max_iter):
+                if alpha < alpha_min: return alpha_min
+                
+                phi_val = phi(alpha)
+                
+                # Upper Bound (Armijo / Sufficient Decrease)
+                if phi_val > phi_0 + m1 * alpha * gphi_0:
+                    # Step too big (above the upper line)
+                    alpha_U = alpha
+                    alpha = (alpha_L + alpha_U) / 2.0
+                
+                # Lower Bound (Control step from below)
+                # phi(a) must be >= phi(0) + (1-m1)*a*phi'(0)
+                # Since phi'(0) is negative, this line is steeper (more negative) than Armijo line.
+                # If phi(a) is below this line, we have descended 'too much' (usually implies too far or too steep region)
+                elif phi_val < phi_0 + (1.0 - m1) * alpha * gphi_0:
+                    # Step effectively too small (or in a region where we should go further/less far depending on geometry)
+                    # In Goldstein context, usually implies we need to increase alpha to get back into the wedge
+                    # However, typical implementation treats 'below lower bound' as 'need to move right'.
+                    alpha_L = alpha
+                    if alpha_U == float('inf'):
+                        alpha = 2.0 * alpha
+                    else:
+                        alpha = (alpha_L + alpha_U) / 2.0
+                
+                else:
+                    # Inside the Goldstein wedge
+                    return alpha
+
+            return alpha
+
         return alpha
