@@ -304,198 +304,171 @@ class Optimiser:
         m: int = self.problem.m
         me: int = self.problem.me
         
-        # Step 0: Initial conditions
-        # Hessian approximation V initialized to identity matrix
+        # V represents the DIRECT Hessian approximation B (not the inverse)
         V: NDArray = np.eye(n)
         
         # Penalty parameter for merit function
-        mu: float = 1.0
+        mu: float = 10.0
         
-        # Compute initial values
-        f: NDArray  = self.problem.compute_objective(self.x) #TODO: check if needed BABACIM
-        c: NDArray = self.problem.compute_constraints(self.x)
+        # Initial evaluation
+        f: float = self.problem.compute_objective(self.x)
+        c: NDArray = self.problem.compute_constraints(self.x) if self.problem.constrained else np.array([])
         grad_f: NDArray = self.problem.compute_grad_objective(self.x)
-        grad_c: NDArray = self.problem.compute_grad_constraints(self.x)
-        
-        # Compute gradient of Lagrangian
-        grad_L = grad_f.copy()
-        for j in range(m + me):
-            grad_L += self.lm[j] * grad_c[j]
-        
-        # Determine active set: violated/active inequality constraints + all equality constraints
-        active = np.nonzero(c[:m] >= 0)[0].tolist() + list(range(m, m + me))
-        
+        grad_c: NDArray = self.problem.compute_grad_constraints(self.x) if self.problem.constrained else np.zeros((0, n))
+
+        # Initialize Lagrange multipliers if not set
+        if self.lm is None:
+            self.lm = np.zeros(m + me)
+
         for iteration in range(iteration_limit):
-            # Check convergence
-            if self.converged(grad_L, c):
-                return iteration
-            
-            # Step 1: Populate constraint Jacobian A for active constraints
-            if len(active) == 0:
-                # No active constraints - solve unconstrained step
-                try:
-                    p = np.linalg.solve(V, -grad_f)
-                except np.linalg.LinAlgError:
-                    p = -grad_f
-            else:
-                # Step 2: Solve the KKT system with active constraints only
-                dim: int = n + len(active)
-                KKT = np.zeros((dim, dim))
-                RHS = np.zeros(dim)
-                
-                KKT[:n, :n] = V
-                KKT[n:, :n] = grad_c[active]
-                KKT[:n, n:] = grad_c[active].T
-                
-                RHS[:n] = -grad_f
-                RHS[n:] = -c[active]
-                
-                # Solve the system (with regularization if needed)
-                try:
-                    solution = np.linalg.solve(KKT, RHS)
-                except np.linalg.LinAlgError:
-                    # Regularize if singular
-                    KKT[:n, :n] += 1e-8 * np.eye(n)
-                    solution = np.linalg.solve(KKT, RHS)
-                
-                p = solution[:n]
-                self.lm[active] = solution[n:]
-            
-            # Ensure non-negative multipliers for inequality constraints
-            for j in range(m):
-                if self.lm[j] < 0:
-                    self.lm[j] = 0.0
-            
-            # Reset inactive Lagrange multipliers to zero
-            inactive = [i for i in range(m) if i not in active]
-            for i in inactive:
-                self.lm[i] = 0.0
-            
-            # Update penalty parameter based on Lagrange multipliers
-            if len(active) > 0:
-                mu: float = max(mu, 1.1 * np.max(np.abs(self.lm[active])))
-            
-            # Step 3: Line search using L1 merit function
-            # Merit function: phi(x) = f(x) + mu * sum(max(0, g_j(x))) + mu * sum(|h_j(x)|)
-            def merit(x_trial):
-                f_trial = self.problem.compute_objective(x_trial)
-                c_trial = self.problem.compute_constraints(x_trial)
-                penalty = 0.0
-                # Inequality constraint violation
-                for j in range(m):
-                    penalty += max(0.0, c_trial[j])
-                # Equality constraint violation
-                for j in range(m, m + me):
-                    penalty += abs(c_trial[j])
-                return f_trial + mu * penalty
-            
-            # Backtracking line search on merit function  #TODO: replace with general line search method BABACIM
-            alpha = 1.0
-            merit_old = merit(self.x)
-            
-            # Directional derivative of merit function (approximate)
-            directional_deriv = np.dot(grad_f, p)
-            for j in active:
-                if j < m:
-                    directional_deriv -= mu * c[j] if c[j] > 0 else 0
-                else:
-                    directional_deriv -= mu * abs(c[j])
-            
-            # Backtracking
-            c1 = 1e-4
-            rho_bt = 0.5
-            max_ls_iter = 50
-            
-            x_old = self.x.copy()
-            
-            for ls_iter in range(max_ls_iter):
-                x_trial = x_old + alpha * p
-                merit_new = merit(x_trial)
-                
-                # Sufficient decrease condition
-                if merit_new <= merit_old + c1 * alpha * directional_deriv or alpha < 1e-10:
-                    break
-                alpha *= rho_bt
-            
-            # Store old gradient for L-BFGS update
-            grad_L_old = grad_L.copy()   #TODO: check if needed BABACIM
-            
-            # Update design variables (in place as required)
-            self.x[:] = x_old + alpha * p
-            
-            # Apply side constraints: variable projection (L-BFGS-B style)
-            if self.problem.lb is not None:
-                lb = np.atleast_1d(self.problem.lb)
-                if lb.size == 1:
-                    lb = np.full(n, lb[0])
-                self.x[:] = np.maximum(self.x, lb)
-            
-            if self.problem.ub is not None:
-                ub = np.atleast_1d(self.problem.ub)
-                if ub.size == 1:
-                    ub = np.full(n, ub[0])
-                self.x[:] = np.minimum(self.x, ub)
-            
-            # Step 4: Run analysis and sensitivity analysis
-            f: NDArray  = self.problem.compute_objective(self.x) #TODO: check if needed BABACIM
-            c: NDArray  = self.problem.compute_constraints(self.x)
-            grad_f: NDArray  = self.problem.compute_grad_objective(self.x)
-            grad_c: NDArray  = self.problem.compute_grad_constraints(self.x)
-            
-            # Compute new gradient of Lagrangian (using updated multipliers)
+            # 1. Lagrangian Gradient
             grad_L = grad_f.copy()
             for j in range(m + me):
                 grad_L += self.lm[j] * grad_c[j]
+
+            # 2. Check Convergence
+            if self.converged(gradient=grad_L, constraints=c):
+                return iteration
+
+            # 3. Determine Active Set (with epsilon tolerance)
+            epsilon = 1e-5
+            active_ineq = np.where(c[:m] >= -epsilon)[0].tolist()
+            active_eq = list(range(m, m + me))
+            active_indices = active_ineq + active_eq
             
-            # Apply gradient masking for side constraints
+            # 4. Gradient Masking (L-BFGS-B style for bounds)
+            # Mask gradient if at bound and gradient points outwards
+            eff_grad_f = grad_f.copy()
             if self.problem.lb is not None:
-                lb = np.atleast_1d(self.problem.lb)
-                if lb.size == 1:
-                    lb = np.full(n, lb[0])
-                for i in range(n):
-                    if self.x[i] <= lb[i] and grad_f[i] > 0:
-                        grad_L[i] = 0.0
-            
+                lb = np.resize(self.problem.lb, n)
+                mask_lb = (self.x <= lb + epsilon) & (eff_grad_f > 0)
+                eff_grad_f[mask_lb] = 0.0
             if self.problem.ub is not None:
-                ub = np.atleast_1d(self.problem.ub)
-                if ub.size == 1:
-                    ub = np.full(n, ub[0])
-                for i in range(n):
-                    if self.x[i] >= ub[i] and grad_f[i] < 0:
-                        grad_L[i] = 0.0
+                ub = np.resize(self.problem.ub, n)
+                mask_ub = (self.x >= ub - epsilon) & (eff_grad_f < 0)
+                eff_grad_f[mask_ub] = 0.0
+
+            # 5. Solve SQP Subproblem (Find direction p)
+            n_act = len(active_indices)
             
-            # Update active set
-            active = np.nonzero(c[:m] >= 0)[0].tolist() + list(range(m, m + me))
-            
-            # Step 5: L-BFGS Hessian update
-            # p^i = x^{i+1} - x^i (actual step taken)
-            p_vec: NDArray  = self.x - x_old
-            
-            # y^i = grad_L(x^{i+1}, lambda^{i+1}) - grad_L(x^i, lambda^{i+1})
-            # Recompute grad_L at old x with new lambda
-            grad_L_old_new_lambda = self.problem.compute_grad_objective(x_old).copy()
-            grad_c_old = self.problem.compute_grad_constraints(x_old)
-            for j in range(m + me):
-                grad_L_old_new_lambda += self.lm[j] * grad_c_old[j]
-            
-            y_vec = grad_L - grad_L_old_new_lambda
-            
-            # Compute rho = 1 / (y^T * p)
-            yTp = np.dot(y_vec, p_vec)
-            
-            # Only update if curvature condition is satisfied
-            if yTp > 1e-10:
-                rho = 1.0 / yTp
+            if n_act == 0:
+                # Unconstrained step
+                try:
+                    p = np.linalg.solve(V, -eff_grad_f)
+                except np.linalg.LinAlgError:
+                    p = -eff_grad_f # Fallback to steepest descent
+                    V = np.eye(n)
+            else:
+                # Constrained step (KKT System)
+                J_active = grad_c[active_indices]
+                c_active = c[active_indices]
                 
-                # L-BFGS update formula (approximating Hessian, not inverse):
-                # V^{i+1} = (I - rho * y * p^T) * V^i * (I - rho * p * y^T) + rho * y * y^T
-                I = np.eye(n)
-                term1 = I - rho * np.outer(y_vec, p_vec)
-                term2 = I - rho * np.outer(p_vec, y_vec)
-                V = term1 @ V @ term2 + rho * np.outer(y_vec, y_vec)
-        
-        # Did not converge within iteration limit
+                # Assemble KKT: [ V J^T ; J 0 ]
+                KKT_top = np.hstack([V, J_active.T])
+                KKT_bot = np.hstack([J_active, np.zeros((n_act, n_act))])
+                KKT = np.vstack([KKT_top, KKT_bot])
+                
+                RHS = np.concatenate([-eff_grad_f, -c_active])
+                
+                try:
+                    sol = np.linalg.solve(KKT, RHS)
+                    p = sol[:n]
+                    lm_new_active = sol[n:]
+                except np.linalg.LinAlgError:
+                    # Regularization if singular
+                    KKT[:n, :n] += 1e-6 * np.eye(n)
+                    try:
+                        sol = np.linalg.solve(KKT, RHS)
+                        p = sol[:n]
+                        lm_new_active = sol[n:]
+                    except:
+                         p = -eff_grad_f
+                         lm_new_active = np.zeros(n_act)
+
+                # Update Lagrange Multipliers
+                self.lm[:] = 0.0 # Reset
+                self.lm[active_indices] = lm_new_active
+                # Enforce non-negativity for inequality constraints
+                self.lm[:m] = np.maximum(self.lm[:m], 0.0)
+
+            # 6. Line Search (Using L1 Merit Function)
+            if n_act > 0:
+                mu = max(mu, np.max(np.abs(self.lm)) + 0.1)
+
+            # Capture original objective to restore later
+            orig_obj_func = self.problem._objective
+
+            # Define temporary Merit Function wrapper
+            def merit_func(x_in):
+                val = orig_obj_func(x_in)
+                if self.problem.constrained:
+                    cons = self.problem.compute_constraints(x_in)
+                    vio = np.sum(np.maximum(0, cons[:m])) + np.sum(np.abs(cons[m:]))
+                    return val + mu * vio
+                return val
+
+            # Swap objective, run line search, swap back
+            self.problem._objective = merit_func
+            try:
+                alpha = self.line_search(
+                    direction=p, 
+                    alpha_ini=1.0, 
+                    algorithm="STRONG_WOLFE",
+                    m1=1e-4,
+                    m2=0.9
+                )
+            finally:
+                self.problem._objective = orig_obj_func
+
+            # 7. Update Position
+            x_old = self.x.copy()
+            self.x += alpha * p
+            
+            # Projection back to bounds
+            if self.problem.lb is not None: self.x = np.maximum(self.x, lb)
+            if self.problem.ub is not None: self.x = np.minimum(self.x, ub)
+
+            # 8. Update Hessian Approximation (BFGS Direct Update)
+            s = self.x - x_old
+            
+            f = self.problem.compute_objective(self.x)
+            c = self.problem.compute_constraints(self.x) if self.problem.constrained else np.array([])
+            grad_f_new = self.problem.compute_grad_objective(self.x)
+            grad_c_new = self.problem.compute_grad_constraints(self.x) if self.problem.constrained else np.zeros((0, n))
+            
+            # y = grad_L_{k+1} - grad_L_{k}
+            grad_L_new = grad_f_new.copy()
+            grad_L_old_w_new_lm = grad_f.copy()
+            
+            for j in range(m + me):
+                grad_L_new += self.lm[j] * grad_c_new[j]
+                grad_L_old_w_new_lm += self.lm[j] * grad_c[j]
+            
+            y = grad_L_new - grad_L_old_w_new_lm
+            
+            ys = np.dot(y, s)
+            if ys > 1e-10:
+                Bs = np.dot(V, s)
+                sBs = np.dot(s, Bs)
+                term1 = np.outer(Bs, Bs) / sBs
+                term2 = np.outer(y, y) / ys
+                V = V - term1 + term2
+            
+            grad_f = grad_f_new
+            grad_c = grad_c_new
+
+            if callback:
+                res = OptimisationResult(
+                    iteration=iteration,
+                    x=self.x,
+                    state=OptimiserState.RUNNING,
+                    objective=f,
+                    step=p
+                )
+                callback(res)
+
         return -1
+
 
     def mma(
         self,
