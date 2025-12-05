@@ -555,7 +555,6 @@ class Optimiser:
             # Unconstrained case — only gradient matters
             return grad_converged
 
-        # TODO: test after constraint implementation
         # --- 2️⃣ Constraint feasibility ---
         # For equality constraints: |c_i| ≤ tol
         # For inequality constraints: c_i ≤ tol
@@ -614,86 +613,92 @@ class Optimiser:
         float
             Approximately optimal step size.
         """
-        # Helper to evaluate phi(alpha) = f(x + alpha * p)
-        # Note: If running SQP, we usually need a Merit function, but for generic
-        # usage we default to the objective. The SQP implementation below 
-        # passes a custom objective handle if needed, but here we assume standard usage.
+        if algorithm == "WOLFE" or algorithm == "GOLDSTEIN-PRICE":
+            raise Warning(f"Line search algorithm '{algorithm}' is not yet implemented. Solver will use 'STRONG_WOLFE' instead.")
         
-        def phi(alpha):
-            # If bounds exist, project the trial point
-            x_trial = self.x + alpha * direction
-            if self.problem.lb is not None or self.problem.ub is not None:
-                lb = self.problem.lb if self.problem.lb is not None else -np.inf
-                ub = self.problem.ub if self.problem.ub is not None else np.inf
-                x_trial = np.clip(x_trial, lb, ub)
+        # 0. Helper Functions for phi(alpha) and phi'(alpha)
+        # --------------------------------------------------
+        # phi(alpha) = f(x + alpha * p)
+        def phi(a: float) -> float:
+            x_trial = self.x + a * direction
+            # If bounds exist, we might project, but usually LS assumes pure direction.
+            # However, problem evaluation might fail if out of bounds.
+            # For exact L-BFGS-B behavior, we implicitly clip, but here we assume unconstrained step logic.
             return self.problem.compute_objective(x_trial)
 
-        def gphi(alpha):
-            # Derivative of phi with respect to alpha: gradient @ direction
-            x_trial = self.x + alpha * direction
-            # Projection handling for gradient is complex; assuming simpler check here
-            if self.problem.lb is not None or self.problem.ub is not None:
-                lb = self.problem.lb if self.problem.lb is not None else -np.inf
-                ub = self.problem.ub if self.problem.ub is not None else np.inf
-                x_trial = np.clip(x_trial, lb, ub)
+        # phi'(alpha) = grad(f(x + alpha * p))^T * p
+        def gphi(a: float) -> float:
+            x_trial = self.x + a * direction
             grad = self.problem.compute_grad_objective(x_trial)
             return np.dot(grad, direction)
 
-        # Cache initial values
+        # 1. Initialization
+        # -----------------
+        alpha = alpha_ini
+        alpha_L = 0.0
+        alpha_U = float('inf') # Using infinity as per Ex 5 slide 14
+
+        # Initial values at alpha=0
         phi_0 = phi(0.0)
         gphi_0 = gphi(0.0)
 
-        # Safety check: if direction is not descent, return small step
+        # Check if direction is descent direction
         if gphi_0 > 0:
-            # logger.warning("Search direction is not a descent direction.")
+            # Not a descent direction, fallback or return small step
+            # logger.warning("Not a descent direction.")
             return alpha_min
 
-        alpha_prev = 0.0
-        phi_prev = phi_0
-        alpha = alpha_ini
-
-        # Function for the Zoom phase
-        def zoom(a_lo, a_hi, phi_lo):
-            for _ in range(20): # Safety break
-                # Quadratic interpolation or bisection
-                a_j = 0.5 * (a_lo + a_hi) 
-                
-                phi_j = phi(a_j)
-                
-                # Check Sufficient Decrease (Armijo)
-                if phi_j > phi_0 + m1 * a_j * gphi_0 or phi_j >= phi_lo:
-                    a_hi = a_j
-                else:
-                    gphi_j = gphi(a_j)
-                    # Check Curvature (Strong Wolfe)
-                    if abs(gphi_j) <= -m2 * gphi_0:
-                        return a_j
-                    if gphi_j * (a_hi - a_lo) >= 0:
-                        a_hi = a_lo
-                    a_lo = a_j
-                    phi_lo = phi_j
-            return a_lo
-
-        # Main Bracket Loop
-        max_iter = 20
+        # 2. Main Loop (Strong Wolfe)
+        # ---------------------------
+        max_iter = 100
         for i in range(max_iter):
-            phi_alpha = phi(alpha)
-            
-            # Check Sufficient Decrease condition (Armijo)
-            if (phi_alpha > phi_0 + m1 * alpha * gphi_0) or (i > 0 and phi_alpha >= phi_prev):
-                return zoom(alpha_prev, alpha, phi_prev)
-            
-            gphi_alpha = gphi(alpha)
-            
-            # Check Curvature condition
-            if abs(gphi_alpha) <= -m2 * gphi_0:
-                return alpha
-            
-            if gphi_alpha >= 0:
-                return zoom(alpha, alpha_prev, phi_alpha)
-            
-            alpha_prev = alpha
-            phi_prev = phi_alpha
-            alpha = min(alpha * 2.0, alpha_max)
+            # Safety check for bounds
+            if alpha < alpha_min:
+                return alpha_min
+            if alpha > alpha_max:
+                return alpha_max
 
+            phi_alpha = phi(alpha)
+            gphi_alpha = gphi(alpha)
+
+            # Armijo Condition (Sufficient Decrease)
+            # phi(alpha) <= phi(0) + m1 * alpha * phi'(0)
+            armijo = phi_alpha <= phi_0 + m1 * alpha * gphi_0
+
+            # Strong Curvature Condition
+            # |phi'(alpha)| <= m2 * |phi'(0)|
+            curvature = abs(gphi_alpha) <= m2 * abs(gphi_0)
+
+            # --- Logic from Exercise 5, Page 14 ---
+            
+            if armijo and curvature:
+                # Both conditions satisfied -> Stop
+                return alpha
+
+            elif not armijo:
+                # Sufficient decrease NOT satisfied (Step too big)
+                alpha_U = alpha
+                alpha = (alpha_L + alpha_U) / 2.0
+
+            elif armijo and not curvature:
+                # Sufficient decrease satisfied, but curvature NOT satisfied
+                
+                # Check slope to decide direction
+                if gphi_alpha < 0:
+                    # Slope is negative: we are still descending, need larger step
+                    alpha_L = alpha
+                    if alpha_U == float('inf'):
+                        # No upper bound yet, expand
+                        # Slide says: alpha += alpha_initial (additive expansion)
+                        # Standard methods often use multiplicative (alpha *= 2), 
+                        # but adhering to Ex 5 notation:
+                        alpha += alpha_ini 
+                    else:
+                        # Upper bound exists, bisect
+                        alpha = (alpha_L + alpha_U) / 2.0
+                else:
+                    # Slope is positive: we passed the minimum, need smaller step
+                    alpha_U = alpha
+                    alpha = (alpha_L + alpha_U) / 2.0
+        
         return alpha
